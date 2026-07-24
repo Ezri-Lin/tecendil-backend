@@ -1,5 +1,6 @@
 "use strict";
 
+const path = require("path");
 const express = require("express");
 const app = express();
 
@@ -8,6 +9,9 @@ const fs = require("fs");
 const xmlDoc = require("xmldoc").XmlDocument;
 const ASCIIFolder = require("./ascii-folder");
 const asciiFolder = new ASCIIFolder();
+
+const PUBLIC_DIR = path.join(__dirname, "public");
+const MODES_DIR = path.join(__dirname, "..", "modes", "modes");
 
 // Ignore the following words when building the index from the lemma (v)
 // and the gloss (definition)
@@ -174,6 +178,21 @@ function dumpRing() {
 
 // Startup the app
 app.set("port", process.env.PORT ?? 39999);
+
+// Mode files: frontend fetches /tecendil-js/modes/${name}.jsonc
+app.get(/^\/tecendil-js\/modes\/([\w-]+)\.jsonc$/, (req, res) => {
+  const name = req.params[0];
+  const filePath = path.join(MODES_DIR, `${name}.jsonc`);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send(`Mode "${name}" not found`);
+  }
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  res.sendFile(filePath);
+});
+
+// Static frontend (HTML, CSS, JS, fonts, dictionary files)
+app.use(express.static(PUBLIC_DIR, { index: "index.html" }));
 
 // Search route
 app.get("/define/:word", (req, res) => {
